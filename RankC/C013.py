@@ -9,6 +9,7 @@ for i in range(num):
         h.append(r)
       
 if not h: #リストが空のとき、Falseを、空でなければTrueを返す
-    h.append('none')
-for ans in h:
-    print(ans)
+    print('none')
+else:
+    for ans in h:
+        print(ans)
