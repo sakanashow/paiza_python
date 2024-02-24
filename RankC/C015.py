@@ -1,13 +1,14 @@
 n = int(input())
 
-point = 0
-for i in range(n):
+total_points = 0
+for _ in range(n): # ループ変数が実際に使用されない場合は_を使用する
     day, amount = input().split()
+    amount = int(amount)
     if '3' in day:
-        point += int(int(amount)*0.03)
+        total_points += amount * 0.03
     elif '5' in day:
-        point += int(int(amount)*0.05)
-    else:    
-        point += int(int(amount)*0.01)
+        total_points += amount * 0.05
+    else:
+        total_points += amount * 0.01
     
-print(point)
+print(int(total_points))
