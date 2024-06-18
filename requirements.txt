@@ -1,0 +1,4 @@
+geopy==2.2.0
+plyer==2.0.0
+opencage==1.2.2
+tkcalendar
