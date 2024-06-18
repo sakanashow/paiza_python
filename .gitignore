@@ -160,3 +160,6 @@ $RECYCLE.BIN/
 
 # Other
 __pycache__/
+
+# Virtual environment
+myenv/
