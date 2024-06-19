@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'タスク編集' if task else 'タスク追加' }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <style>
+        body {
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{ 'タスク編集' if task else 'タスク追加' }}</h1>
+        <div class="row">
+            <form id="task-form" class="col s12" action="{{ url_for('save_task') }}" method="post">
+                <div class="row">
+                    <div class="input-field col s6">
+                        <input id="title" name="title" type="text" required value="{{ task.title if task else '' }}">
+                        <label for="title" class="active">タイトル</label>
+                    </div>
+                    <div class="input-field col s6">
+                        <input id="deadline" name="deadline" type="text" class="datepicker" required value="{{ task.deadline if task else '' }}">
+                        <label for="deadline" class="active">期限</label>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="input-field col s12">
+                        <input id="details" name="details" type="text" value="{{ task.details if task else '' }}">
+                        <label for="details" class="active">詳細</label>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="input-field col s12">
+                        <select id="status" name="status">
+                            <option value="未着手" {% if not task or task.status == '未着手' %}selected{% endif %}>未着手</option>
+                            <option value="進行中" {% if task and task.status == '進行中' %}selected{% endif %}>進行中</option>
+                            <option value="完了" {% if task and task.status == '完了' %}selected{% endif %}>完了</option>
+                        </select>
+                        <label for="status">ステータス</label>
+                    </div>
+                </div>
+                {% if task %}
+                    <input type="hidden" name="index" value="{{ index }}">
+                {% endif %}
+                <button class="btn waves-effect waves-light" type="submit">保存</button>
+                <button class="btn grey" type="button" onclick="window.close()">キャンセル</button>
+            </form>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var elems = document.querySelectorAll('.datepicker');
+            var instances = M.Datepicker.init(elems, {format: 'yyyy-mm-dd'});
+            var selectElems = document.querySelectorAll('select');
+            var selectInstances = M.FormSelect.init(selectElems);
+        });
+    </script>
+</body>
+</html>
