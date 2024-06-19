@@ -204,6 +204,7 @@
                 var modalInstance = M.Modal.getInstance(modalElem);
                 modalInstance.close();
                 $('#calendar').fullCalendar('refetchEvents');
+                M.toast({html: 'タスクが保存されました'});
             });
         }
 
@@ -229,6 +230,7 @@
             .then(updatedTask => {
                 fetchTasks();
                 $('#calendar').fullCalendar('refetchEvents');
+                M.toast({html: 'ステータスが変更されました'});
             });
         }
 
@@ -237,6 +239,7 @@
                 .then(() => {
                     fetchTasks();
                     $('#calendar').fullCalendar('refetchEvents');
+                    M.toast({html: 'タスクが削除されました'});
                 });
         }
 
