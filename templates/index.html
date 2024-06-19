@@ -34,23 +34,23 @@
         <button class="btn waves-effect waves-light modal-trigger" data-target="task-modal" onclick="openTaskForm()">タスク追加</button>
         <div class="row" id="tasks-container">
             {% for task in tasks %}
-            <div id="task-{{ loop.index0 }}" class="card task-card">
+            <div id="task-{{ task.id }}" class="card task-card">
                 <div class="card-content">
                     <span class="card-title">{{ task.title }}</span>
                     <p>期限: {{ task.deadline }}</p>
                     <p>詳細: {{ task.details }}</p>
                     <p>ステータス: 
-                        <select id="status-select-{{ loop.index0 }}" class="status-select">
+                        <select id="status-select-{{ task.id }}" class="status-select">
                             <option value="未着手" {% if task.status == '未着手' %}selected{% endif %}>未着手</option>
                             <option value="進行中" {% if task.status == '進行中' %}selected{% endif %}>進行中</option>
                             <option value="完了" {% if task.status == '完了' %}selected{% endif %}>完了</option>
                         </select>
                     </p>
-                    <button class="btn green" onclick="changeTaskStatus({{ loop.index0 }})">ステータス変更</button>
+                    <button class="btn green" onclick="changeTaskStatus({{ task.id }})">ステータス変更</button>
                 </div>
                 <div class="card-action">
-                    <button class="btn blue modal-trigger" data-target="task-modal" onclick="editTask({{ loop.index0 }})">編集</button>
-                    <button class="btn red" onclick="deleteTask({{ loop.index0 }})">削除</button>
+                    <button class="btn blue modal-trigger" data-target="task-modal" onclick="editTask({{ task.id }})">編集</button>
+                    <button class="btn red" onclick="deleteTask({{ task.id }})">削除</button>
                 </div>
             </div>
             {% endfor %}
@@ -135,12 +135,12 @@
             M.Modal.init(modalElems);
         }
 
-        function openTaskForm(index = null, date = null) {
-            if (index !== null) {
+        function openTaskForm(taskId = null, date = null) {
+            if (taskId !== null) {
                 fetch(`/tasks`)
                     .then(response => response.json())
                     .then(tasks => {
-                        const task = tasks[index];
+                        const task = tasks.find(t => t.id === taskId);
                         document.getElementById('title').value = task.title;
                         document.getElementById('deadline').value = task.deadline;
                         document.getElementById('details').value = task.details;
@@ -149,7 +149,7 @@
                         M.updateTextFields();
                         M.FormSelect.init(document.querySelectorAll('select'));
                         document.getElementById('task-form').dataset.method = 'PUT';
-                        document.getElementById('task-form').dataset.index = index;
+                        document.getElementById('task-form').dataset.taskId = taskId;
                         var modalElem = document.querySelector('#task-modal');
                         var modalInstance = M.Modal.getInstance(modalElem);
                         modalInstance.open();
@@ -175,8 +175,8 @@
                 .then(tasks => {
                     const tasksContainer = document.getElementById('tasks-container');
                     tasksContainer.innerHTML = '';
-                    tasks.forEach((task, index) => {
-                        const taskCard = createTaskCard(task, index);
+                    tasks.forEach((task) => {
+                        const taskCard = createTaskCard(task);
                         tasksContainer.appendChild(taskCard);
                     });
                     initializeMaterializeComponents();
@@ -190,7 +190,8 @@
             const status = document.getElementById('status').value;
 
             const method = document.getElementById('task-form').dataset.method || 'POST';
-            const url = method === 'POST' ? '/tasks' : `/tasks/${document.getElementById('task-form').dataset.index}`;
+            const taskId = document.getElementById('task-form').dataset.taskId;
+            const url = method === 'POST' ? '/tasks' : `/tasks/${taskId}`;
 
             fetch(url, {
                 method: method,
@@ -208,20 +209,20 @@
             });
         }
 
-        function editTask(index) {
-            openTaskForm(index);
+        function editTask(taskId) {
+            openTaskForm(taskId);
         }
 
-        function changeTaskStatus(index) {
-            const select = document.getElementById(`status-select-${index}`);
+        function changeTaskStatus(taskId) {
+            const select = document.getElementById(`status-select-${taskId}`);
             const status = select.value;
 
-            const taskCard = document.querySelector(`#task-${index}`);
+            const taskCard = document.querySelector(`#task-${taskId}`);
             const title = taskCard.querySelector('.card-title').innerText;
             const deadline = taskCard.querySelector('p:nth-child(2)').innerText.replace('期限: ', '');
             const details = taskCard.querySelector('p:nth-child(3)').innerText.replace('詳細: ', '');
 
-            fetch(`/tasks/${index}`, {
+            fetch(`/tasks/${taskId}`, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({title, deadline, details, status})
@@ -234,8 +235,8 @@
             });
         }
 
-        function deleteTask(index) {
-            fetch(`/tasks/${index}`, {method: 'DELETE'})
+        function deleteTask(taskId) {
+            fetch(`/tasks/${taskId}`, {method: 'DELETE'})
                 .then(() => {
                     fetchTasks();
                     $('#calendar').fullCalendar('refetchEvents');
@@ -243,9 +244,9 @@
                 });
         }
 
-        function createTaskCard(task, index) {
+        function createTaskCard(task) {
             const card = document.createElement('div');
-            card.id = `task-${index}`;
+            card.id = `task-${task.id}`;
             card.className = 'card task-card';
             card.innerHTML = `
                 <div class="card-content">
@@ -253,17 +254,17 @@
                     <p>期限: ${task.deadline}</p>
                     <p>詳細: ${task.details}</p>
                     <p>ステータス: 
-                        <select id="status-select-${index}" class="status-select">
+                        <select id="status-select-${task.id}" class="status-select">
                             <option value="未着手" ${task.status === '未着手' ? 'selected' : ''}>未着手</option>
                             <option value="進行中" ${task.status === '進行中' ? 'selected' : ''}>進行中</option>
                             <option value="完了" ${task.status === '完了' ? 'selected' : ''}>完了</option>
                         </select>
                     </p>
-                    <button class="btn green" onclick="changeTaskStatus(${index})">ステータス変更</button>
+                    <button class="btn green" onclick="changeTaskStatus(${task.id})">ステータス変更</button>
                 </div>
                 <div class="card-action">
-                    <button class="btn blue modal-trigger" data-target="task-modal" onclick="editTask(${index})">編集</button>
-                    <button class="btn red" onclick="deleteTask(${index})">削除</button>
+                    <button class="btn blue modal-trigger" data-target="task-modal" onclick="editTask(${task.id})">編集</button>
+                    <button class="btn red" onclick="deleteTask(${task.id})">削除</button>
                 </div>
             `;
             return card;

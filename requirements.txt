@@ -3,3 +3,5 @@ plyer==2.0.0
 opencage==1.2.2
 tkcalendar
 flask
+flask-sqlalchemy
+flask-bcrypt
