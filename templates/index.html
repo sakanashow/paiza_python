@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タスク管理アプリケーション</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.js"></script>
+    <style>
+        body {
+            padding: 20px;
+        }
+        .task-card {
+            margin-bottom: 20px;
+        }
+        .calendar-container {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>タスク管理アプリケーション</h1>
+        <a href="{{ url_for('logout') }}" class="btn red">ログアウト</a>
+        <div class="row calendar-container">
+            <div class="col s12">
+                <div id="calendar"></div>
+            </div>
+        </div>
+        <button class="btn waves-effect waves-light modal-trigger" data-target="task-modal" onclick="openTaskForm()">タスク追加</button>
+        <div class="row" id="tasks-container">
+            {% for task in tasks %}
+            <div id="task-{{ loop.index0 }}" class="card task-card">
+                <div class="card-content">
+                    <span class="card-title">{{ task.title }}</span>
+                    <p>期限: {{ task.deadline }}</p>
+                    <p>詳細: {{ task.details }}</p>
+                    <p>ステータス: 
+                        <select id="status-select-{{ loop.index0 }}" class="status-select">
+                            <option value="未着手" {% if task.status == '未着手' %}selected{% endif %}>未着手</option>
+                            <option value="進行中" {% if task.status == '進行中' %}selected{% endif %}>進行中</option>
+                            <option value="完了" {% if task.status == '完了' %}selected{% endif %}>完了</option>
+                        </select>
+                    </p>
+                    <button class="btn green" onclick="changeTaskStatus({{ loop.index0 }})">ステータス変更</button>
+                </div>
+                <div class="card-action">
+                    <button class="btn blue modal-trigger" data-target="task-modal" onclick="editTask({{ loop.index0 }})">編集</button>
+                    <button class="btn red" onclick="deleteTask({{ loop.index0 }})">削除</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- モーダル -->
+        <div id="task-modal" class="modal">
+            <div class="modal-content">
+                <h4 id="modal-title">タスク追加</h4>
+                <form id="task-form">
+                    <div class="row">
+                        <div class="input-field col s6">
+                            <input id="title" type="text" required>
+                            <label for="title">タイトル</label>
+                        </div>
+                        <div class="input-field col s6">
+                            <input id="deadline" type="text" class="datepicker" required>
+                            <label for="deadline">期限</label>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="input-field col s12">
+                            <input id="details" type="text">
+                            <label for="details">詳細</label>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="input-field col s12">
+                            <select id="status">
+                                <option value="未着手" selected>未着手</option>
+                                <option value="進行中">進行中</option>
+                                <option value="完了">完了</option>
+                            </select>
+                            <label for="status">ステータス</label>
+                        </div>
+                    </div>
+                    <button class="btn waves-effect waves-light" type="submit">保存</button>
+                    <button class="btn grey modal-close" type="button">キャンセル</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMaterializeComponents();
+            fetchTasks();
+            
+            document.getElementById('task-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveTask();
+            });
+
+            $('#calendar').fullCalendar({
+                events: function(start, end, timezone, callback) {
+                    fetch('/tasks')
+                        .then(response => response.json())
+                        .then(tasks => {
+                            var events = tasks.map(task => ({
+                                title: task.title,
+                                start: task.deadline,
+                                details: task.details
+                            }));
+                            callback(events);
+                        });
+                },
+                displayEventTime: false,
+                eventRender: function(event, element) {
+                    element.attr('title', event.details);
+                },
+                dayClick: function(date, jsEvent, view) {
+                    openTaskForm(null, date.format());
+                }
+            });
+        });
+
+        function initializeMaterializeComponents() {
+            var elems = document.querySelectorAll('.datepicker');
+            M.Datepicker.init(elems, {format: 'yyyy-mm-dd'});
+            var selectElems = document.querySelectorAll('select');
+            M.FormSelect.init(selectElems);
+            var modalElems = document.querySelectorAll('.modal');
+            M.Modal.init(modalElems);
+        }
+
+        function openTaskForm(index = null, date = null) {
+            if (index !== null) {
+                fetch(`/tasks`)
+                    .then(response => response.json())
+                    .then(tasks => {
+                        const task = tasks[index];
+                        document.getElementById('title').value = task.title;
+                        document.getElementById('deadline').value = task.deadline;
+                        document.getElementById('details').value = task.details;
+                        document.getElementById('status').value = task.status;
+                        document.getElementById('modal-title').innerText = 'タスク編集';
+                        M.updateTextFields();
+                        M.FormSelect.init(document.querySelectorAll('select'));
+                        document.getElementById('task-form').dataset.method = 'PUT';
+                        document.getElementById('task-form').dataset.index = index;
+                        var modalElem = document.querySelector('#task-modal');
+                        var modalInstance = M.Modal.getInstance(modalElem);
+                        modalInstance.open();
+                    });
+            } else {
+                document.getElementById('task-form').reset();
+                document.getElementById('modal-title').innerText = 'タスク追加';
+                M.updateTextFields();
+                M.FormSelect.init(document.querySelectorAll('select'));
+                document.getElementById('task-form').dataset.method = 'POST';
+                if (date) {
+                    document.getElementById('deadline').value = date;
+                }
+                var modalElem = document.querySelector('#task-modal');
+                var modalInstance = M.Modal.getInstance(modalElem);
+                modalInstance.open();
+            }
+        }
+
+        function fetchTasks() {
+            fetch('/tasks')
+                .then(response => response.json())
+                .then(tasks => {
+                    const tasksContainer = document.getElementById('tasks-container');
+                    tasksContainer.innerHTML = '';
+                    tasks.forEach((task, index) => {
+                        const taskCard = createTaskCard(task, index);
+                        tasksContainer.appendChild(taskCard);
+                    });
+                    initializeMaterializeComponents();
+                });
+        }
+
+        function saveTask() {
+            const title = document.getElementById('title').value;
+            const deadline = document.getElementById('deadline').value;
+            const details = document.getElementById('details').value;
+            const status = document.getElementById('status').value;
+
+            const method = document.getElementById('task-form').dataset.method || 'POST';
+            const url = method === 'POST' ? '/tasks' : `/tasks/${document.getElementById('task-form').dataset.index}`;
+
+            fetch(url, {
+                method: method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title, deadline, details, status})
+            })
+            .then(response => response.json())
+            .then(task => {
+                fetchTasks();
+                var modalElem = document.querySelector('#task-modal');
+                var modalInstance = M.Modal.getInstance(modalElem);
+                modalInstance.close();
+                $('#calendar').fullCalendar('refetchEvents');
+            });
+        }
+
+        function editTask(index) {
+            openTaskForm(index);
+        }
+
+        function changeTaskStatus(index) {
+            const select = document.getElementById(`status-select-${index}`);
+            const status = select.value;
+
+            const taskCard = document.querySelector(`#task-${index}`);
+            const title = taskCard.querySelector('.card-title').innerText;
+            const deadline = taskCard.querySelector('p:nth-child(2)').innerText.replace('期限: ', '');
+            const details = taskCard.querySelector('p:nth-child(3)').innerText.replace('詳細: ', '');
+
+            fetch(`/tasks/${index}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title, deadline, details, status})
+            })
+            .then(response => response.json())
+            .then(updatedTask => {
+                fetchTasks();
+                $('#calendar').fullCalendar('refetchEvents');
+            });
+        }
+
+        function deleteTask(index) {
+            fetch(`/tasks/${index}`, {method: 'DELETE'})
+                .then(() => {
+                    fetchTasks();
+                    $('#calendar').fullCalendar('refetchEvents');
+                });
+        }
+
+        function createTaskCard(task, index) {
+            const card = document.createElement('div');
+            card.id = `task-${index}`;
+            card.className = 'card task-card';
+            card.innerHTML = `
+                <div class="card-content">
+                    <span class="card-title">${task.title}</span>
+                    <p>期限: ${task.deadline}</p>
+                    <p>詳細: ${task.details}</p>
+                    <p>ステータス: 
+                        <select id="status-select-${index}" class="status-select">
+                            <option value="未着手" ${task.status === '未着手' ? 'selected' : ''}>未着手</option>
+                            <option value="進行中" ${task.status === '進行中' ? 'selected' : ''}>進行中</option>
+                            <option value="完了" ${task.status === '完了' ? 'selected' : ''}>完了</option>
+                        </select>
+                    </p>
+                    <button class="btn green" onclick="changeTaskStatus(${index})">ステータス変更</button>
+                </div>
+                <div class="card-action">
+                    <button class="btn blue modal-trigger" data-target="task-modal" onclick="editTask(${index})">編集</button>
+                    <button class="btn red" onclick="deleteTask(${index})">削除</button>
+                </div>
+            `;
+            return card;
+        }
+    </script>
+</body>
+</html>

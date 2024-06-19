@@ -212,12 +212,16 @@ class TaskManager:
             self.show_status_combobox(item_id)
 
     def show_status_combobox(self, item_id):
-        x, y, width, height = self.tree.bbox(item_id, "Status")
+        bbox = self.tree.bbox(item_id, "Status")
+        x, y, width, height = bbox
+        x += self.tree_frame.winfo_rootx() - self.tree.winfo_rootx()
+        y += self.tree_frame.winfo_rooty() - self.tree.winfo_rooty()
         status_var = tk.StringVar()
         status_combobox = ttk.Combobox(self.tree_frame, textvariable=status_var, values=["未着手", "進行中", "完了"])
-        status_combobox.place(x=x, y=y + self.tree_frame.winfo_y(), width=width, height=height)
+        status_combobox.place(x=x, y=y, width=width, height=height)
         status_combobox.set(self.tree.set(item_id, "Status"))
         status_combobox.bind("<<ComboboxSelected>>", lambda event: self.on_status_change(event, item_id, status_combobox))
+        status_combobox.focus_set()
 
     def on_status_change(self, event, item_id, combobox):
         new_status = combobox.get()
