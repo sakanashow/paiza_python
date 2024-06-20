@@ -47,9 +47,7 @@ class Task(db.Model):
 def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    user_id = session['user_id']
-    tasks = Task.query.filter_by(user_id=user_id).filter(Task.status != '完了').all()
-    return render_template('index.html', tasks=tasks)
+    return render_template('index.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -69,14 +67,6 @@ def logout():
     session.pop('user_id', None)
     return redirect(url_for('login'))
 
-@app.route('/task_form')
-@app.route('/task_form/<int:task_id>')
-def task_form(task_id=None):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    task = Task.query.get(task_id) if task_id else None
-    return render_template('task_form.html', task=task)
-
 @app.route('/tasks', methods=['GET'])
 def get_tasks():
     if 'user_id' not in session:
@@ -92,6 +82,20 @@ def get_tasks():
             'details': task.details
         })
     return jsonify(events)
+
+@app.route('/tasks/<int:task_id>', methods=['GET'])
+def get_task(task_id):
+    task = Task.query.get(task_id)
+    if task:
+        return jsonify({
+            'id': task.id,
+            'title': task.title,
+            'deadline': task.deadline.strftime('%Y-%m-%d'),
+            'details': task.details,
+            'status': task.status
+        })
+    else:
+        return jsonify({'error': 'Task not found'}), 404
 
 @app.route('/tasks', methods=['POST'])
 def manage_tasks():

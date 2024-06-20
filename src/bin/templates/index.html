@@ -14,9 +14,6 @@
         body {
             padding: 20px;
         }
-        .task-card {
-            margin-bottom: 20px;
-        }
         .calendar-container {
             margin-bottom: 20px;
         }
@@ -33,29 +30,6 @@
         </div>
         <button class="btn waves-effect waves-light modal-trigger" data-target="task-modal" onclick="openTaskForm()">タスク追加</button>
         <a href="{{ url_for('completed_tasks') }}" class="btn">完了済みタスク一覧</a>
-        <div class="row" id="tasks-container">
-            {% for task in tasks %}
-            <div id="task-{{ task.id }}" class="card task-card">
-                <div class="card-content">
-                    <span class="card-title">{{ task.title }}</span>
-                    <p>期限: {{ task.deadline }}</p>
-                    <p>詳細: {{ task.details }}</p>
-                    <p>ステータス: 
-                        <select id="status-select-{{ task.id }}" class="status-select">
-                            <option value="未着手" {% if task.status == '未着手' %}selected{% endif %}>未着手</option>
-                            <option value="進行中" {% if task.status == '進行中' %}selected{% endif %}>進行中</option>
-                            <option value="完了" {% if task.status == '完了' %}selected{% endif %}>完了</option>
-                        </select>
-                    </p>
-                    <button class="btn green" onclick="changeTaskStatus({{ task.id }})">ステータス変更</button>
-                </div>
-                <div class="card-action">
-                    <button class="btn blue modal-trigger" data-target="task-modal" onclick="editTask({{ task.id }})">編集</button>
-                    <button class="btn red" onclick="deleteTask({{ task.id }})">削除</button>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
 
         <!-- モーダル -->
         <div id="task-modal" class="modal">
@@ -97,7 +71,6 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             initializeMaterializeComponents();
-            fetchTasks();
             
             document.getElementById('task-form').addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -113,7 +86,7 @@
                             var events = tasks.map(task => ({
                                 id: task.id,
                                 title: task.title,
-                                start: task.start,  // 修正: 'task.deadline' から 'task.start' に変更
+                                start: task.start,
                                 details: task.details
                             }));
                             callback(events);
@@ -125,6 +98,9 @@
                 },
                 dayClick: function(date, jsEvent, view) {
                     openTaskForm(null, date.format());
+                },
+                eventClick: function(event) {
+                    openTaskForm(event.id);
                 },
                 eventDrop: function(event, delta, revertFunc) {
                     if (!confirm("この変更を保存しますか？")) {
@@ -148,12 +124,11 @@
 
         function openTaskForm(taskId = null, date = null) {
             if (taskId !== null) {
-                fetch(`/tasks`)
+                fetch(`/tasks/${taskId}`)
                     .then(response => response.json())
-                    .then(tasks => {
-                        const task = tasks.find(t => t.id === taskId);
+                    .then(task => {
                         document.getElementById('title').value = task.title;
-                        document.getElementById('deadline').value = task.start;  // 修正: 'task.deadline' から 'task.start' に変更
+                        document.getElementById('deadline').value = task.deadline;
                         document.getElementById('details').value = task.details;
                         document.getElementById('status').value = task.status;
                         document.getElementById('modal-title').innerText = 'タスク編集';
@@ -180,20 +155,6 @@
             }
         }
 
-        function fetchTasks() {
-            fetch('/tasks')
-                .then(response => response.json())
-                .then(tasks => {
-                    const tasksContainer = document.getElementById('tasks-container');
-                    tasksContainer.innerHTML = '';
-                    tasks.forEach((task) => {
-                        const taskCard = createTaskCard(task);
-                        tasksContainer.appendChild(taskCard);
-                    });
-                    initializeMaterializeComponents();
-                });
-        }
-
         function saveTask() {
             const title = document.getElementById('title').value;
             const deadline = document.getElementById('deadline').value;
@@ -211,74 +172,12 @@
             })
             .then(response => response.json())
             .then(task => {
-                fetchTasks();
                 var modalElem = document.querySelector('#task-modal');
                 var modalInstance = M.Modal.getInstance(modalElem);
                 modalInstance.close();
                 $('#calendar').fullCalendar('refetchEvents');
                 M.toast({html: 'タスクが保存されました'});
             });
-        }
-
-        function editTask(taskId) {
-            openTaskForm(taskId);
-        }
-
-        function changeTaskStatus(taskId) {
-            const select = document.getElementById(`status-select-${taskId}`);
-            const status = select.value;
-
-            const taskCard = document.querySelector(`#task-${taskId}`);
-            const title = taskCard.querySelector('.card-title').innerText;
-            const deadline = taskCard.querySelector('p:nth-child(2)').innerText.replace('期限: ', '');
-            const details = taskCard.querySelector('p:nth-child(3)').innerText.replace('詳細: ', '');
-
-            fetch(`/tasks/${taskId}`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({title, deadline, details, status})
-            })
-            .then(response => response.json())
-            .then(updatedTask => {
-                fetchTasks();
-                $('#calendar').fullCalendar('refetchEvents');
-                M.toast({html: 'ステータスが変更されました'});
-            });
-        }
-
-        function deleteTask(taskId) {
-            fetch(`/tasks/${taskId}`, {method: 'DELETE'})
-                .then(() => {
-                    fetchTasks();
-                    $('#calendar').fullCalendar('refetchEvents');
-                    M.toast({html: 'タスクが削除されました'});
-                });
-        }
-
-        function createTaskCard(task) {
-            const card = document.createElement('div');
-            card.id = `task-${task.id}`;
-            card.className = 'card task-card';
-            card.innerHTML = `
-                <div class="card-content">
-                    <span class="card-title">${task.title}</span>
-                    <p>期限: ${task.start}</p>  <!-- 修正: 'task.deadline' から 'task.start' に変更 -->
-                    <p>詳細: ${task.details}</p>
-                    <p>ステータス: 
-                        <select id="status-select-${task.id}" class="status-select">
-                            <option value="未着手" ${task.status === '未着手' ? 'selected' : ''}>未着手</option>
-                            <option value="進行中" ${task.status === '進行中' ? 'selected' : ''}>進行中</option>
-                            <option value="完了" ${task.status === '完了' ? 'selected' : ''}>完了</option>
-                        </select>
-                    </p>
-                    <button class="btn green" onclick="changeTaskStatus(${task.id})">ステータス変更</button>
-                </div>
-                <div class="card-action">
-                    <button class="btn blue modal-trigger" data-target="task-modal" onclick="editTask(${task.id})">編集</button>
-                    <button class="btn red" onclick="deleteTask(${task.id})">削除</button>
-                </div>
-            `;
-            return card;
         }
 
         function updateTaskDeadline(taskId, newDeadline) {
@@ -289,7 +188,6 @@
             })
             .then(response => response.json())
             .then(updatedTask => {
-                fetchTasks();
                 $('#calendar').fullCalendar('refetchEvents');
                 M.toast({html: 'タスクの日付が変更されました'});
             });
