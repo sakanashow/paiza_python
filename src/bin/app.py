@@ -2,10 +2,16 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from datetime import datetime
+import os
 
-app = Flask(__name__)
+# ベースディレクトリを定義
+base_dir = os.path.abspath(os.path.dirname(__file__))
+
+app = Flask(__name__,
+            template_folder=os.path.join(base_dir, 'templates'))
+
 app.secret_key = 'your_secret_key'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(base_dir, '../../tasks.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -42,7 +48,6 @@ def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     user_id = session['user_id']
-    # ステータスが「完了」でないタスクをフィルタリング
     tasks = Task.query.filter_by(user_id=user_id).filter(Task.status != '完了').all()
     return render_template('index.html', tasks=tasks)
 
@@ -88,7 +93,6 @@ def manage_tasks():
         return jsonify(new_task.id)
     else:
         user_id = session['user_id']
-        # ステータスが「完了」でないタスクをフィルタリング
         tasks = Task.query.filter_by(user_id=user_id).filter(Task.status != '完了').all()
         return jsonify([{
             'id': task.id,
@@ -119,7 +123,6 @@ def completed_tasks():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     user_id = session['user_id']
-    # ステータスが「完了」のタスクをフィルタリング
     tasks = Task.query.filter_by(user_id=user_id, status='完了').all()
     return render_template('completed_tasks.html', tasks=tasks)
 

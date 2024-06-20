@@ -1,4 +1,4 @@
-from bin.app import db, User, app
+from app import db, User, app
 
 def create_user(email, password):
     new_user = User(email=email, password=password)
