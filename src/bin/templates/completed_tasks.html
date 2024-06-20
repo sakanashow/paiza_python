@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>完了済みタスク一覧</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <style>
+        body {
+            padding: 20px;
+        }
+        .task-card {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>完了済みタスク一覧</h1>
+        <a href="{{ url_for('index') }}" class="btn">戻る</a>
+        <div class="row">
+            {% for task in tasks %}
+            <div id="task-{{ task.id }}" class="card task-card">
+                <div class="card-content">
+                    <span class="card-title">{{ task.title }}</span>
+                    <p>期限: {{ task.deadline }}</p>
+                    <p>詳細: {{ task.details }}</p>
+                    <p>ステータス: {{ task.status }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>

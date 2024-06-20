@@ -163,3 +163,4 @@ __pycache__/
 
 # Virtual environment
 myenv/
+node_modules/

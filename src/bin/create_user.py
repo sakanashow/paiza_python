@@ -8,5 +8,5 @@ def create_user(email, password):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        create_user('test@example.com', 'password')
-        print("User created: test@example.com / password")
+        create_user('new_user@example.com', 'password')
+        print("User created: new_user@example.com / password")

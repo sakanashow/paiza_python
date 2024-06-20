@@ -32,6 +32,7 @@
             </div>
         </div>
         <button class="btn waves-effect waves-light modal-trigger" data-target="task-modal" onclick="openTaskForm()">タスク追加</button>
+        <a href="{{ url_for('completed_tasks') }}" class="btn">完了済みタスク一覧</a>
         <div class="row" id="tasks-container">
             {% for task in tasks %}
             <div id="task-{{ task.id }}" class="card task-card">
@@ -104,13 +105,15 @@
             });
 
             $('#calendar').fullCalendar({
+                editable: true, // ドラッグアンドドロップを有効にする
                 events: function(start, end, timezone, callback) {
                     fetch('/tasks')
                         .then(response => response.json())
                         .then(tasks => {
                             var events = tasks.map(task => ({
+                                id: task.id,
                                 title: task.title,
-                                start: task.deadline,
+                                start: task.start,  // 修正: 'task.deadline' から 'task.start' に変更
                                 details: task.details
                             }));
                             callback(events);
@@ -122,6 +125,14 @@
                 },
                 dayClick: function(date, jsEvent, view) {
                     openTaskForm(null, date.format());
+                },
+                eventDrop: function(event, delta, revertFunc) {
+                    if (!confirm("この変更を保存しますか？")) {
+                        revertFunc();
+                    } else {
+                        const newDeadline = event.start.format('YYYY-MM-DD');
+                        updateTaskDeadline(event.id, newDeadline);
+                    }
                 }
             });
         });
@@ -142,7 +153,7 @@
                     .then(tasks => {
                         const task = tasks.find(t => t.id === taskId);
                         document.getElementById('title').value = task.title;
-                        document.getElementById('deadline').value = task.deadline;
+                        document.getElementById('deadline').value = task.start;  // 修正: 'task.deadline' から 'task.start' に変更
                         document.getElementById('details').value = task.details;
                         document.getElementById('status').value = task.status;
                         document.getElementById('modal-title').innerText = 'タスク編集';
@@ -251,7 +262,7 @@
             card.innerHTML = `
                 <div class="card-content">
                     <span class="card-title">${task.title}</span>
-                    <p>期限: ${task.deadline}</p>
+                    <p>期限: ${task.start}</p>  <!-- 修正: 'task.deadline' から 'task.start' に変更 -->
                     <p>詳細: ${task.details}</p>
                     <p>ステータス: 
                         <select id="status-select-${task.id}" class="status-select">
@@ -268,6 +279,20 @@
                 </div>
             `;
             return card;
+        }
+
+        function updateTaskDeadline(taskId, newDeadline) {
+            fetch(`/tasks/${taskId}/deadline`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({deadline: newDeadline})
+            })
+            .then(response => response.json())
+            .then(updatedTask => {
+                fetchTasks();
+                $('#calendar').fullCalendar('refetchEvents');
+                M.toast({html: 'タスクの日付が変更されました'});
+            });
         }
     </script>
 </body>
