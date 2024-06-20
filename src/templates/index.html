@@ -32,6 +32,7 @@
             </div>
         </div>
         <button class="btn waves-effect waves-light modal-trigger" data-target="task-modal" onclick="openTaskForm()">タスク追加</button>
+        <a href="{{ url_for('completed_tasks') }}" class="btn">完了済みタスク一覧</a>
         <div class="row" id="tasks-container">
             {% for task in tasks %}
             <div id="task-{{ task.id }}" class="card task-card">

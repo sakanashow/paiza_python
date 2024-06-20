@@ -42,7 +42,8 @@ def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     user_id = session['user_id']
-    tasks = Task.query.filter_by(user_id=user_id).all()
+    # ステータスが「完了」でないタスクをフィルタリング
+    tasks = Task.query.filter_by(user_id=user_id).filter(Task.status != '完了').all()
     return render_template('index.html', tasks=tasks)
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -87,7 +88,8 @@ def manage_tasks():
         return jsonify(new_task.id)
     else:
         user_id = session['user_id']
-        tasks = Task.query.filter_by(user_id=user_id).all()
+        # ステータスが「完了」でないタスクをフィルタリング
+        tasks = Task.query.filter_by(user_id=user_id).filter(Task.status != '完了').all()
         return jsonify([{
             'id': task.id,
             'title': task.title,
@@ -111,6 +113,15 @@ def update_task(task_id):
         db.session.delete(task)
         db.session.commit()
         return '', 204
+    
+@app.route('/completed_tasks')
+def completed_tasks():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    user_id = session['user_id']
+    # ステータスが「完了」のタスクをフィルタリング
+    tasks = Task.query.filter_by(user_id=user_id, status='完了').all()
+    return render_template('completed_tasks.html', tasks=tasks)
 
 if __name__ == '__main__':
     with app.app_context():
