@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ログイン</title>
+    <title>新規登録</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1 class="my-4">ログイン</h1>
-        <form method="post" action="{{ url_for('login') }}">
+        <h1 class="my-4">新規登録</h1>
+        <form method="post" action="{{ url_for('register') }}">
             <div class="form-group">
                 <label for="email">メールアドレス</label>
                 <input id="email" name="email" type="email" class="form-control" required>
@@ -20,8 +20,7 @@
                 <label for="password">パスワード</label>
                 <input id="password" name="password" type="password" class="form-control" required>
             </div>
-            <button class="btn btn-primary" type="submit">ログイン</button>
-            <a href="{{ url_for('register') }}" class="btn btn-secondary">新規登録</a>
+            <button class="btn btn-primary" type="submit">登録</button>
         </form>
     </div>
     <script>

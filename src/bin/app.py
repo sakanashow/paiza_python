@@ -1,17 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from datetime import datetime
-import os
 
-# プロジェクトのルートディレクトリを定義
-base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
-
-app = Flask(__name__,
-            template_folder=os.path.join(os.path.dirname(__file__), 'templates'))
-
+app = Flask(__name__)
 app.secret_key = 'your_secret_key'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(base_dir, 'tasks.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -47,7 +41,12 @@ class Task(db.Model):
 def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    return render_template('index.html')
+    
+    user_id = session['user_id']
+    user = User.query.get(user_id)
+    
+    return render_template('index.html', user=user)
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -59,7 +58,8 @@ def login():
             session['user_id'] = user.id
             return redirect(url_for('index'))
         else:
-            return "ログイン失敗"
+            flash('ログイン失敗', 'danger')
+            return redirect(url_for('login'))
     return render_template('login.html')
 
 @app.route('/logout')
@@ -67,26 +67,44 @@ def logout():
     session.pop('user_id', None)
     return redirect(url_for('login'))
 
-@app.route('/tasks', methods=['GET'])
-def get_tasks():
+@app.route('/task_form')
+@app.route('/task_form/<int:task_id>')
+def task_form(task_id=None):
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    user_id = session['user_id']
-    tasks = Task.query.filter_by(user_id=user_id).all()
-    events = []
-    for task in tasks:
-        events.append({
+    task = Task.query.get(task_id) if task_id else None
+    return render_template('task_form.html', task=task)
+
+@app.route('/tasks', methods=['GET', 'POST'])
+def manage_tasks():
+    if request.method == 'POST':
+        data = request.get_json()
+        print(data)  # デバッグ用のログ
+        new_task = Task(
+            title=data['title'],
+            deadline=datetime.strptime(data['deadline'], '%Y-%m-%d').date(),
+            details=data['details'],
+            status=data['status'],
+            user_id=session['user_id']
+        )
+        db.session.add(new_task)
+        db.session.commit()
+        return jsonify(new_task.id)
+    else:
+        user_id = session['user_id']
+        tasks = Task.query.filter_by(user_id=user_id).filter(Task.status != '完了').all()
+        return jsonify([{
             'id': task.id,
             'title': task.title,
-            'start': task.deadline.strftime('%Y-%m-%d'),
-            'details': task.details
-        })
-    return jsonify(events)
+            'deadline': task.deadline.strftime('%Y-%m-%d'),
+            'details': task.details,
+            'status': task.status
+        } for task in tasks])
 
-@app.route('/tasks/<int:task_id>', methods=['GET'])
-def get_task(task_id):
+@app.route('/tasks/<int:task_id>', methods=['GET', 'PUT', 'DELETE'])
+def task_detail(task_id):
     task = Task.query.get(task_id)
-    if task:
+    if request.method == 'GET':
         return jsonify({
             'id': task.id,
             'title': task.title,
@@ -94,48 +112,28 @@ def get_task(task_id):
             'details': task.details,
             'status': task.status
         })
-    else:
-        return jsonify({'error': 'Task not found'}), 404
-
-@app.route('/tasks', methods=['POST'])
-def manage_tasks():
-    data = request.get_json()
-    new_task = Task(
-        title=data['title'],
-        deadline=datetime.strptime(data['deadline'], '%Y-%m-%d').date(),
-        details=data['details'],
-        status=data['status'],
-        user_id=session['user_id']
-    )
-    db.session.add(new_task)
-    db.session.commit()
-    return jsonify(new_task.id)
-
-@app.route('/tasks/<int:task_id>', methods=['PUT'])
-def update_task(task_id):
-    task = Task.query.get(task_id)
-    data = request.get_json()
-    task.title = data.get('title', task.title)
-    task.deadline = datetime.strptime(data.get('deadline', task.deadline.strftime('%Y-%m-%d')), '%Y-%m-%d').date()
-    task.details = data.get('details', task.details)
-    task.status = data.get('status', task.status)
-    db.session.commit()
-    return jsonify({'id': task.id})
+    elif request.method == 'PUT':
+        data = request.get_json()
+        print(data)  # デバッグ用のログ
+        task.title = data['title']
+        task.deadline = datetime.strptime(data['deadline'], '%Y-%m-%d').date()
+        task.details = data['details']
+        task.status = data['status']
+        db.session.commit()
+        return jsonify(task.id)
+    elif request.method == 'DELETE':
+        db.session.delete(task)
+        db.session.commit()
+        return '', 204
 
 @app.route('/tasks/<int:task_id>/deadline', methods=['PUT'])
 def update_task_deadline(task_id):
     task = Task.query.get(task_id)
     data = request.get_json()
+    print(data)  # デバッグ用のログ
     task.deadline = datetime.strptime(data['deadline'], '%Y-%m-%d').date()
     db.session.commit()
-    return jsonify({'id': task.id})
-
-@app.route('/tasks/<int:task_id>', methods=['DELETE'])
-def delete_task(task_id):
-    task = Task.query.get(task_id)
-    db.session.delete(task)
-    db.session.commit()
-    return '', 204
+    return jsonify(task.id)
 
 @app.route('/completed_tasks')
 def completed_tasks():
@@ -144,6 +142,24 @@ def completed_tasks():
     user_id = session['user_id']
     tasks = Task.query.filter_by(user_id=user_id, status='完了').all()
     return render_template('completed_tasks.html', tasks=tasks)
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        if User.query.filter_by(email=email).first():
+            flash('このメールアドレスは既に登録されています', 'danger')
+            return redirect(url_for('register'))
+        new_user = User(email=email)
+        new_user.password = password
+        db.session.add(new_user)
+        db.session.commit()
+        flash('新規登録が完了しました。ログインしてください', 'success')
+        return redirect(url_for('login'))
+    return render_template('register.html')
+
+
 
 if __name__ == '__main__':
     with app.app_context():
