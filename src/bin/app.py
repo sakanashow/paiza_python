@@ -43,9 +43,10 @@ def index():
         return redirect(url_for('login'))
     
     user_id = session['user_id']
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)  # 修正点
     
     return render_template('index.html', user=user)
+
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -126,14 +127,22 @@ def task_detail(task_id):
         db.session.commit()
         return '', 204
 
-@app.route('/tasks/<int:task_id>/deadline', methods=['PUT'])
-def update_task_deadline(task_id):
-    task = Task.query.get(task_id)
-    data = request.get_json()
-    print(data)  # デバッグ用のログ
-    task.deadline = datetime.strptime(data['deadline'], '%Y-%m-%d').date()
-    db.session.commit()
-    return jsonify(task.id)
+@app.route('/tasks/<int:task_id>', methods=['PUT', 'DELETE'])
+def update_task(task_id):
+    task = db.session.get(Task, task_id)  # 修正点
+    if request.method == 'PUT':
+        data = request.get_json()
+        task.title = data['title']
+        task.deadline = datetime.strptime(data['deadline'], '%Y-%m-%d').date()
+        task.details = data['details']
+        task.status = data['status']
+        db.session.commit()
+        return jsonify(task.id)
+    elif request.method == 'DELETE':
+        db.session.delete(task)
+        db.session.commit()
+        return '', 204
+
 
 @app.route('/completed_tasks')
 def completed_tasks():
