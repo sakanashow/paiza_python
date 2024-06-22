@@ -111,3 +111,29 @@ def test_delete_task(client):
     with app.app_context():
         task = db.session.get(Task, task_id)
         assert task is None
+
+def test_task_list(client):
+    # Register and login a new user
+    client.post('/register', data={'email': 'test@example.com', 'password': 'password'}, follow_redirects=True)
+    client.post('/login', data={'email': 'test@example.com', 'password': 'password'}, follow_redirects=True)
+    
+    # Add a new task
+    task_data = {
+        'title': 'Test Task',
+        'deadline': '2023-06-20',
+        'details': 'Test details',
+        'status': '未着手'
+    }
+    client.post('/tasks', json=task_data)
+    
+    # Fetch the task list
+    response = client.get('/tasks')
+    assert response.status_code == 200
+    
+    tasks = response.get_json()
+    assert len(tasks) == 1
+    task = tasks[0]
+    assert task['title'] == 'Test Task'
+    assert task['deadline'] == '2023-06-20'
+    assert task['details'] == 'Test details'
+    assert task['status'] == '未着手'
