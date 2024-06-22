@@ -43,7 +43,7 @@ def index():
         return redirect(url_for('login'))
     
     user_id = session['user_id']
-    user = db.session.get(User, user_id)
+    user = User.query.get(user_id)
     
     return render_template('index.html', user=user)
 
@@ -72,14 +72,13 @@ def logout():
 def task_form(task_id=None):
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    task = db.session.get(Task, task_id) if task_id else None
+    task = Task.query.get(task_id) if task_id else None
     return render_template('task_form.html', task=task)
 
 @app.route('/tasks', methods=['GET', 'POST'])
 def manage_tasks():
     if request.method == 'POST':
         data = request.get_json()
-        print(data)  # デバッグ用のログ
         new_task = Task(
             title=data['title'],
             deadline=datetime.strptime(data['deadline'], '%Y-%m-%d').date(),
@@ -103,7 +102,7 @@ def manage_tasks():
 
 @app.route('/tasks/<int:task_id>', methods=['GET', 'PUT', 'DELETE'])
 def task_detail(task_id):
-    task = db.session.get(Task, task_id)
+    task = Task.query.get(task_id)
     if request.method == 'GET':
         return jsonify({
             'id': task.id,
@@ -114,7 +113,6 @@ def task_detail(task_id):
         })
     elif request.method == 'PUT':
         data = request.get_json()
-        print(data)  # デバッグ用のログ
         task.title = data['title']
         task.deadline = datetime.strptime(data['deadline'], '%Y-%m-%d').date()
         task.details = data['details']
@@ -128,9 +126,8 @@ def task_detail(task_id):
 
 @app.route('/tasks/<int:task_id>/deadline', methods=['PUT'])
 def update_task_deadline(task_id):
-    task = db.session.get(Task, task_id)
+    task = Task.query.get(task_id)
     data = request.get_json()
-    print(data)  # デバッグ用のログ
     task.deadline = datetime.strptime(data['deadline'], '%Y-%m-%d').date()
     db.session.commit()
     return jsonify(task.id)
