@@ -33,30 +33,30 @@ jobs:
         source venv/bin/activate
         pytest src/tests/test_app.py
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
+  # deploy:
+  #   needs: build
+  #   runs-on: ubuntu-latest
 
-    steps:
-    - name: Check out the repository
-      uses: actions/checkout@v2
+  #   steps:
+  #   - name: Check out the repository
+  #     uses: actions/checkout@v2
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.12
+  #   - name: Set up Python
+  #     uses: actions/setup-python@v2
+  #     with:
+  #       python-version: 3.12
 
-    - name: Install dependencies
-      run: |
-        python -m venv venv
-        source venv/bin/activate
-        pip install -r requirements.txt
+  #   - name: Install dependencies
+  #     run: |
+  #       python -m venv venv
+  #       source venv/bin/activate
+  #       pip install -r requirements.txt
 
-    - name: Deploy to Heroku
-      env:
-        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-      run: |
-        source venv/bin/activate
-        pip install gunicorn
-        heroku create your-heroku-app-name
-        git push heroku main
+  #   - name: Deploy to Heroku
+  #     env:
+  #       HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+  #     run: |
+  #       source venv/bin/activate
+  #       pip install gunicorn
+  #       heroku create your-heroku-app-name
+  #       git push heroku main
