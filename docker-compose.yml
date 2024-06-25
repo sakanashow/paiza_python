@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      FLASK_APP: "src/bin/app.py"
+      FLASK_ENV: "development"
+    volumes:
+      - .:/app
+    command: >
+      bash -c "flask db upgrade || flask db init && flask db migrate && flask db upgrade && flask run --host=0.0.0.0"
