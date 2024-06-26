@@ -1,13 +1,20 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, DateField, TextAreaField
+from wtforms.validators import DataRequired, Email, Length
+from flask_wtf.csrf import CSRFProtect
 from datetime import datetime
+from flask_wtf import FlaskForm
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['WTF_CSRF_ENABLED'] = not app.config['TESTING']
 
+csrf = CSRFProtect(app)
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 
@@ -37,6 +44,20 @@ class Task(db.Model):
 
     user = db.relationship('User', backref=db.backref('tasks', lazy=True))
 
+class LoginForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Password', validators=[DataRequired()])
+
+class RegisterForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
+
+class TaskForm(FlaskForm):
+    title = StringField('Title', validators=[DataRequired()])
+    deadline = DateField('Deadline', validators=[DataRequired()])
+    details = TextAreaField('Details')
+    status = StringField('Status', validators=[DataRequired()])
+    
 @app.route('/')
 def index():
     if 'user_id' not in session:
@@ -50,9 +71,10 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
+    form = LoginForm()
+    if form.validate_on_submit():
+        email = form.email.data
+        password = form.password.data
         user = User.query.filter_by(email=email).first()
         if user and user.verify_password(password):
             session['user_id'] = user.id
@@ -60,35 +82,56 @@ def login():
         else:
             flash('ログイン失敗', 'danger')
             return redirect(url_for('login'))
-    return render_template('login.html')
+    return render_template('login.html', form=form)
 
 @app.route('/logout')
 def logout():
     session.pop('user_id', None)
     return redirect(url_for('login'))
 
-@app.route('/task_form')
-@app.route('/task_form/<int:task_id>')
+@app.route('/task_form', methods=['GET', 'POST'])
+@app.route('/task_form/<int:task_id>', methods=['GET', 'POST'])
 def task_form(task_id=None):
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    task = db.session.get(Task, task_id) if task_id else None  # 修正箇所
-    return render_template('task_form.html', task=task)
+    
+    task = db.session.get(Task, task_id) if task_id else None
+    form = TaskForm(obj=task)
+    
+    if form.validate_on_submit():
+        if task:
+            form.populate_obj(task)
+        else:
+            task = Task(
+                title=form.title.data,
+                deadline=form.deadline.data,
+                details=form.details.data,
+                status=form.status.data,
+                user_id=session['user_id']
+            )
+            db.session.add(task)
+        db.session.commit()
+        return redirect(url_for('index'))
+
+    return render_template('task_form.html', form=form)
 
 @app.route('/tasks', methods=['GET', 'POST'])
 def manage_tasks():
     if request.method == 'POST':
-        data = request.get_json()
-        new_task = Task(
-            title=data['title'],
-            deadline=datetime.strptime(data['deadline'], '%Y-%m-%d').date(),
-            details=data['details'],
-            status=data['status'],
-            user_id=session['user_id']
-        )
-        db.session.add(new_task)
-        db.session.commit()
-        return jsonify(new_task.id)
+        form = TaskForm()
+        if form.validate_on_submit():
+            new_task = Task(
+                title=form.title.data,
+                deadline=form.deadline.data,
+                details=form.details.data,
+                status=form.status.data,
+                user_id=session['user_id']
+            )
+            db.session.add(new_task)
+            db.session.commit()
+            return jsonify(new_task.id)
+        else:
+            return jsonify(form.errors), 400
     else:
         user_id = session['user_id']
         tasks = Task.query.filter_by(user_id=user_id).filter(Task.status != '完了').all()
@@ -102,7 +145,7 @@ def manage_tasks():
 
 @app.route('/tasks/<int:task_id>', methods=['GET', 'PUT', 'DELETE'])
 def task_detail(task_id):
-    task = db.session.get(Task, task_id)  # 修正箇所
+    task = db.session.get(Task, task_id)
     if request.method == 'GET':
         return jsonify({
             'id': task.id,
@@ -112,13 +155,16 @@ def task_detail(task_id):
             'status': task.status
         })
     elif request.method == 'PUT':
-        data = request.get_json()
-        task.title = data['title']
-        task.deadline = datetime.strptime(data['deadline'], '%Y-%m-%d').date()
-        task.details = data['details']
-        task.status = data['status']
-        db.session.commit()
-        return jsonify(task.id)
+        form = TaskForm()
+        if form.validate_on_submit():
+            task.title = form.title.data
+            task.deadline = form.deadline.data
+            task.details = form.details.data
+            task.status = form.status.data
+            db.session.commit()
+            return jsonify(task.id)
+        else:
+            return jsonify(form.errors), 400
     elif request.method == 'DELETE':
         db.session.delete(task)
         db.session.commit()
@@ -126,7 +172,7 @@ def task_detail(task_id):
 
 @app.route('/tasks/<int:task_id>/deadline', methods=['PUT'])
 def update_task_deadline(task_id):
-    task = db.session.get(Task, task_id)  # 修正箇所
+    task = db.session.get(Task, task_id)
     data = request.get_json()
     task.deadline = datetime.strptime(data['deadline'], '%Y-%m-%d').date()
     db.session.commit()
@@ -142,19 +188,18 @@ def completed_tasks():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
-        if User.query.filter_by(email=email).first():
+    form = RegisterForm()
+    if form.validate_on_submit():
+        if User.query.filter_by(email=form.email.data).first():
             flash('このメールアドレスは既に登録されています', 'danger')
             return redirect(url_for('register'))
-        new_user = User(email=email)
-        new_user.password = password
+        new_user = User(email=form.email.data)
+        new_user.password = form.password.data
         db.session.add(new_user)
         db.session.commit()
         flash('新規登録が完了しました。ログインしてください', 'success')
         return redirect(url_for('login'))
-    return render_template('register.html')
+    return render_template('register.html', form=form)
 
 if __name__ == '__main__':
     with app.app_context():
